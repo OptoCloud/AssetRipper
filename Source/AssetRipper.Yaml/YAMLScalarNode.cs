@@ -114,6 +114,12 @@ namespace AssetRipper.Yaml
 		{
 		}
 
+		internal YamlScalarNode(byte[] value)
+		{
+			SetValue(value);
+			Style = ScalarStyle.Plain;
+		}
+
 		public void SetValue(bool value)
 		{
 			m_value = value ? 1u : 0u;
@@ -190,8 +196,14 @@ namespace AssetRipper.Yaml
 
 		public void SetValue(string value)
 		{
-			m_string = value;
+			m_object = value;
 			m_objectType = ScalarType.String;
+		}
+
+		public void SetValue(byte[] value)
+		{
+			m_object = value;
+			m_objectType = ScalarType.ByteArray;
 		}
 
 		internal Emitter ToString(Emitter emitter)
@@ -210,6 +222,7 @@ namespace AssetRipper.Yaml
 					ScalarType.UInt64 => emitter.WriteHex(m_value),
 					ScalarType.Single => emitter.WriteHex((uint)m_value),
 					ScalarType.Double => emitter.WriteHex(m_value),
+					ScalarType.ByteArray => emitter.WriteHex((byte[])m_object),
 					_ => throw new NotImplementedException(m_objectType.ToString()),
 				},
 				_ => m_objectType switch
@@ -226,6 +239,7 @@ namespace AssetRipper.Yaml
 					ScalarType.Single => emitter.Write(BitConverter.UInt32BitsToSingle((uint)m_value)),
 					ScalarType.Double => emitter.Write(BitConverter.UInt64BitsToDouble(m_value)),
 					ScalarType.String => WriteString(emitter),
+					ScalarType.ByteArray => throw new NotImplementedException("Operation to turn raw bytes into string is unclear, data could represent anything"),
 					_ => throw new NotImplementedException(m_objectType.ToString()),
 				},
 			};
@@ -261,24 +275,26 @@ namespace AssetRipper.Yaml
 
 		private Emitter WriteString(Emitter emitter)
 		{
+			string str = m_objectType == ScalarType.String ? (string)m_object : String.Empty;
+
 			switch (Style)
 			{
 				case ScalarStyle.Plain:
 					if (emitter.IsFormatKeys && emitter.IsKey)
 					{
-						emitter.WriteFormat(m_string);
+						emitter.WriteFormat(str);
 					}
 					else
 					{
-						emitter.Write(m_string);
+						emitter.Write(str);
 					}
 					break;
 				case ScalarStyle.SingleQuoted:
 					{
 						emitter.WriteDelayed();
-						for (int i = 0; i < m_string.Length; i++)
+						for (int i = 0; i < str.Length; i++)
 						{
-							char c = m_string[i];
+							char c = str[i];
 							emitter.WriteRaw(c);
 							switch (c)
 							{
@@ -297,9 +313,9 @@ namespace AssetRipper.Yaml
 				case ScalarStyle.DoubleQuoted:
 					{
 						emitter.WriteDelayed();
-						for (int i = 0; i < m_string.Length; i++)
+						for (int i = 0; i < str.Length; i++)
 						{
-							char c = m_string[i];
+							char c = str[i];
 							switch (c)
 							{
 								case '\\':
@@ -393,6 +409,7 @@ namespace AssetRipper.Yaml
 						ScalarType.UInt64 => m_value.ToHexString(),
 						ScalarType.Single => BitConverter.UInt32BitsToSingle((uint)m_value).ToHexString(),
 						ScalarType.Double => BitConverter.UInt64BitsToDouble(m_value).ToHexString(),
+						ScalarType.ByteArray => Convert.ToHexString((byte[])m_object).ToLower(), // TODO: .NET9 use Convert.ToHexStringLower()
 						_ => throw new NotImplementedException(m_objectType.ToString()),
 					},
 					_ => m_objectType switch
@@ -408,17 +425,18 @@ namespace AssetRipper.Yaml
 						ScalarType.UInt64 => m_value.ToString(),
 						ScalarType.Single => BitConverter.UInt32BitsToSingle((uint)m_value).ToString(CultureInfo.InvariantCulture),
 						ScalarType.Double => BitConverter.UInt64BitsToDouble(m_value).ToString(CultureInfo.InvariantCulture),
-						ScalarType.String => m_string,
+						ScalarType.String => (string)m_object,
+						ScalarType.ByteArray => throw new NotImplementedException("Operation to turn raw bytes into string is unclear, data could represent anything"),
 						_ => throw new NotImplementedException(m_objectType.ToString()),
 					},
 				};
 			}
-			set => m_string = value;
+			set => m_object = value;
 		}
 		public ScalarStyle Style { get; }
 
 		private ScalarType m_objectType = ScalarType.String;
-		private string m_string = string.Empty;
+		private object m_object = String.Empty;
 		private ulong m_value = 0;
 
 		public override string ToString() => Value;

@@ -77,6 +77,16 @@ namespace AssetRipper.Yaml.Extensions
 			return _this.WriteHex(BitConverter.DoubleToUInt64Bits(value));
 		}
 
+		public static Emitter WriteHex(this Emitter _this, byte[] value)
+		{
+			if (value.Length > int.MaxValue / 2)
+			{
+				throw new ArgumentException("Bytearray exceeds 2GB, cannot convert to hex");
+			}
+
+			return _this.Write(Convert.ToHexString(value).ToLower()); // TODO: .NET9 use Convert.ToHexStringLower()
+		}
+
 		private static readonly string HexAlphabet = "0123456789ABCDEF";
 	}
 }

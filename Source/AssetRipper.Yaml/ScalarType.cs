@@ -14,5 +14,6 @@ namespace AssetRipper.Yaml
 		Single,
 		Double,
 		String,
+		ByteArray,
 	}
 }
